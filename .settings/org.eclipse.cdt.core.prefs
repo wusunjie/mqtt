@@ -1,0 +1,12 @@
+eclipse.preferences.version=1
+environment/project/org.eclipse.cdt.msvc.exe.debug.323050138/INCLUDE/delimiter=;
+environment/project/org.eclipse.cdt.msvc.exe.debug.323050138/INCLUDE/operation=replace
+environment/project/org.eclipse.cdt.msvc.exe.debug.323050138/INCLUDE/value=C\:\\Program Files (x86)\\Windows Kits\\8.0\\Include;D\:\\Program Files (x86)\\Microsoft Visual Studio 12.0\\VC\\Include
+environment/project/org.eclipse.cdt.msvc.exe.debug.323050138/LIB/delimiter=;
+environment/project/org.eclipse.cdt.msvc.exe.debug.323050138/LIB/operation=replace
+environment/project/org.eclipse.cdt.msvc.exe.debug.323050138/LIB/value=D\:\\Program Files (x86)\\Microsoft Visual Studio 12.0\\VC\\Lib;C\:\\Program Files (x86)\\Windows Kits\\8.0\\Lib;C\:\\Program Files (x86)\\Windows Kits\\8.0\\Lib\\win8\\um\\x86
+environment/project/org.eclipse.cdt.msvc.exe.debug.323050138/PATH/delimiter=;
+environment/project/org.eclipse.cdt.msvc.exe.debug.323050138/PATH/operation=replace
+environment/project/org.eclipse.cdt.msvc.exe.debug.323050138/PATH/value=D\:\\Program Files (x86)\\Microsoft Visual Studio 12.0\\VC\\..\\Common7\\IDE;D\:\\Program Files (x86)\\Microsoft Visual Studio 12.0\\VC\\..\\Common7\\Tools;D\:\\Program Files (x86)\\Microsoft Visual Studio 12.0\\VC\\Bin;D\:\\Program Files (x86)\\Microsoft Visual Studio 12.0\\VC\\vcpackages;C\:\\Program Files (x86)\\Windows Kits\\8.0\\Bin
+environment/project/org.eclipse.cdt.msvc.exe.debug.323050138/append=true
+environment/project/org.eclipse.cdt.msvc.exe.debug.323050138/appendContributed=true
