@@ -48,13 +48,13 @@ struct connect_param {
 	mqtt_type_uint8 level;
 	mqtt_type_uint16 alive;
 	struct cph_flag {
-		unsigned int unf:1;
-		unsigned int  pf:1;
-		unsigned int  wr:1;
-		unsigned int wqs:2;
-		unsigned int  wf:1;
-		unsigned int  cs:1;
 		unsigned int    :1;
+		unsigned int  cs:1;
+		unsigned int  wf:1;
+		unsigned int wqs:2;
+		unsigned int  wr:1;
+		unsigned int  pf:1;
+		unsigned int unf:1;
 	} flags;
 	struct mqtt_type_utf8 client_id;
 	struct mqtt_type_utf8 w_topic;

@@ -25,9 +25,11 @@ extern const mqtt_type_uint8 CONNECT_RETURN_CODE_INTERNAL      = 3;
 extern const mqtt_type_uint8 CONNECT_RETURN_CODE_FAILED        = 4;
 extern const mqtt_type_uint8 CONNECT_RETURN_CODE_AUTH          = 5;
 
+#pragma pack(push, 1)
+
 struct control_packet_header {
-	unsigned int type:4;
 	unsigned int flag:4;
+	unsigned int type:4;
 };
 
 struct connect_packet_header {
@@ -39,11 +41,13 @@ struct connect_packet_header {
 
 struct connack_packet_header {
 	struct {
-		unsigned int   :7;
 		unsigned int sp:1;
+		unsigned int   :7;
 	} ca_flag;
 	mqtt_type_uint8 cr_code;
 };
+
+#pragma pack(pop)
 
 static mqtt_type_uint8 encode_remain_len(mqtt_type_uint32 len, mqtt_type_uint32 *code);
 static mqtt_type_uint8 decode_remain_len(mqtt_type_uint32 *code, mqtt_type_uint32 *len);
@@ -359,26 +363,26 @@ void parse_connect_packet(mqtt_type_uint8 *buf, mqtt_type_uint32 len, mqtt_type_
 	result->content.connect.flags = header->flags;
 	result->content.connect.alive = header->alive;
 	buf += sizeof(*header);
-	result->content.connect.client_id.len = *(mqtt_type_uint16 *)buf;
-	memcpy(result->content.connect.client_id.data, buf + 2, *(mqtt_type_uint16 *)buf);
-	buf += 2 + *(mqtt_type_uint16 *)buf;
+	result->content.connect.client_id.len = ((mqtt_type_uint16)(buf[0]) << 8) | buf[1];
+	memcpy(result->content.connect.client_id.data, buf + 2, ((mqtt_type_uint16)(buf[0]) << 8) | buf[1]);
+	buf += 2 + (((mqtt_type_uint16)(buf[0]) << 8) | buf[1]);
 	if (header->flags.wf) {
-		result->content.connect.w_topic.len = *(mqtt_type_uint16 *)buf;
-		memcpy(result->content.connect.w_topic.data, buf + 2, *(mqtt_type_uint16 *)buf);
-		buf += 2 + *(mqtt_type_uint16 *)buf;
-		result->content.connect.w_mesg.len = *(mqtt_type_uint16 *)buf;
-		memcpy(result->content.connect.w_mesg.data, buf + 2, *(mqtt_type_uint16 *)buf);
-		buf += 2 + *(mqtt_type_uint16 *)buf;
+		result->content.connect.w_topic.len = ((mqtt_type_uint16)(buf[0]) << 8) | buf[1];
+		memcpy(result->content.connect.w_topic.data, buf + 2, ((mqtt_type_uint16)(buf[0]) << 8) | buf[1]);
+		buf += 2 + (((mqtt_type_uint16)(buf[0]) << 8) | buf[1]);
+		result->content.connect.w_mesg.len = ((mqtt_type_uint16)(buf[0]) << 8) | buf[1];
+		memcpy(result->content.connect.w_mesg.data, buf + 2, ((mqtt_type_uint16)(buf[0]) << 8) | buf[1]);
+		buf += 2 + (((mqtt_type_uint16)(buf[0]) << 8) | buf[1]);
 	}
 	if (header->flags.unf) {
-		result->content.connect.u_name.len = *(mqtt_type_uint16 *)buf;
-		memcpy(result->content.connect.u_name.data, buf + 2, *(mqtt_type_uint16 *)buf);
-		buf += 2 + *(mqtt_type_uint16 *)buf;
+		result->content.connect.u_name.len = ((mqtt_type_uint16)(buf[0]) << 8) | buf[1];
+		memcpy(result->content.connect.u_name.data, buf + 2, ((mqtt_type_uint16)(buf[0]) << 8) | buf[1]);
+		buf += 2 + (((mqtt_type_uint16)(buf[0]) << 8) | buf[1]);
 	}
 	if (header->flags.pf) {
-		result->content.connect.pwd.len = *(mqtt_type_uint16 *)buf;
-		memcpy(result->content.connect.pwd.data, buf + 2, *(mqtt_type_uint16 *)buf);
-		buf += 2 + *(mqtt_type_uint16 *)buf;
+		result->content.connect.pwd.len = ((mqtt_type_uint16)(buf[0]) << 8) | buf[1];
+		memcpy(result->content.connect.pwd.data, buf + 2, ((mqtt_type_uint16)(buf[0]) << 8) | buf[1]);
+		buf += 2 + (((mqtt_type_uint16)(buf[0]) << 8) | buf[1]);
 	}
 }
 
