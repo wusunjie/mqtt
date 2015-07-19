@@ -12,7 +12,6 @@ struct conn_if {
 	void (*connected)(int fd);
 	void (*disconnected)(int fd);
 	void (*readable)(int fd);
-	void (*writable)(int fd);
 	void (*error)(int fd, int code);
 };
 
@@ -21,11 +20,14 @@ struct fifo;
 struct conn_buf {
 	struct fifo *read;
 	struct fifo *write;
-	struct conn_if *handler;
 };
+
+extern void conn_initialize(struct conn_if *handler);
 
 extern int conn_start(struct conn_buf buf, char *ip, unsigned short port);
 
 extern void conn_stop(int fd);
+
+extern void conn_finalize(void);
 
 #endif /* CONNECTION_H_ */

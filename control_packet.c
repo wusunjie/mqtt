@@ -41,8 +41,8 @@ struct connect_packet_header {
 
 struct connack_packet_header {
 	struct {
-		unsigned int sp:1;
-		unsigned int   :7;
+		unsigned int       sp:1;
+		unsigned int reserved:7;
 	} ca_flag;
 	mqtt_type_uint8 cr_code;
 };
@@ -58,7 +58,7 @@ static mqtt_type_uint8 make_empty_packet(mqtt_type_uint8 type, mqtt_type_uint16 
 static void make_connect_packet_name(mqtt_type_uint8 *header);
 static mqtt_type_uint8 check_connect_packet_name(mqtt_type_uint8 *header);
 
-static void parse_connect_packet(mqtt_type_uint8 *buf, mqtt_type_uint32 len, mqtt_type_uint8 flag, struct parse_result *result);
+static void parse_connect_packet(mqtt_type_uint8 *buf, mqtt_type_uint32 len, struct parse_result *result);
 static void parse_publish_packet(mqtt_type_uint8 *buf, mqtt_type_uint32 len, mqtt_type_uint8 flag,  struct parse_result *result);
 
 static mqtt_type_uint8 packet_fixed_flag_table[16] = {
@@ -290,26 +290,38 @@ mqtt_type_uint32 parse_control_packet(mqtt_type_uint8 *buf, mqtt_type_uint32 len
 	mqtt_type_uint32 remain = 0;
 	mqtt_type_uint8 l = 0;
 	struct control_packet_header *fixed = (struct control_packet_header *)buf;
+	result->error = CONTROL_PACKET_ERROR_NONE;
 	if (len < sizeof(*fixed)) {
+		result->error = CONTROL_PACKET_ERROR_INCOMPLETE;
 		return 0;
 	}
 	l = decode_remain_len((mqtt_type_uint32 *)(buf + 1), &remain);
 	if (0xff == l) {
+		result->error = CONTROL_PACKET_ERROR_WRONG_LEN;
 		return 0;
 	}
 	if (remain + l + 1 > len) {
+		result->error = CONTROL_PACKET_ERROR_INCOMPLETE;
 		return 0;
+	}
+	if (fixed->flag == packet_fixed_flag_table[fixed->type]) {
+		result->error = CONTROL_PACKET_ERROR_INVALID_FLAG;
+		return remain + l + 1;
 	}
 	result->type = fixed->type;
 	switch (fixed->type) {
 		case CONTROL_PACKET_TYPE_CONNECT:
-			parse_connect_packet(buf + 1 + l, remain, fixed->flag, result);
+			parse_connect_packet(buf + 1 + l, remain, result);
 			break;
 		case CONTROL_PACKET_TYPE_CONNACK:
 		{
 			struct connack_packet_header *header = (struct connack_packet_header *)buf + 1 + l;
-			result->content.connack.sp = header->ca_flag.sp;
-			result->content.connack.cr_code = header->cr_code;
+			if (!header->ca_flag.reserved) {
+				result->content.connack.sp = header->ca_flag.sp;
+				result->content.connack.cr_code = header->cr_code;
+			} else {
+				result->error = CONTROL_PACKET_ERROR_INVALID_RESERVE;
+			}
 		}
 			break;
 		case CONTROL_PACKET_TYPE_PUBLISH:
@@ -351,12 +363,11 @@ mqtt_type_uint32 parse_control_packet(mqtt_type_uint8 *buf, mqtt_type_uint32 len
 	return remain + l + 1;
 }
 
-void parse_connect_packet(mqtt_type_uint8 *buf, mqtt_type_uint32 len, mqtt_type_uint8 flag, struct parse_result *result)
+void parse_connect_packet(mqtt_type_uint8 *buf, mqtt_type_uint32 len, struct parse_result *result)
 {
 	struct connect_packet_header *header = (struct connect_packet_header *)buf;
 	if (check_connect_packet_name(header->pname)) {
-		/* wrong protocol name. */
-		result->error = 0;
+		result->error = CONTROL_PACKET_ERROR_WRONG_NAME;
 		return;
 	}
 	result->content.connect.level = header->level;

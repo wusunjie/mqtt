@@ -6,6 +6,7 @@
  */
 
 #include "control_packet.h"
+#include "list.h"
 
 #pragma pack(push, 1)
 struct data {
