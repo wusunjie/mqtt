@@ -5,275 +5,390 @@
  *      Author: Administrator
  */
 
-#ifndef LIST_H_
-#define LIST_H_
+/*
+ * Copyright (c) 2001-2004 Jakub Jermar
+ * Copyright (c) 2013 Jiri Svoboda
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ * - Redistributions of source code must retain the above copyright
+ *   notice, this list of conditions and the following disclaimer.
+ * - Redistributions in binary form must reproduce the above copyright
+ *   notice, this list of conditions and the following disclaimer in the
+ *   documentation and/or other materials provided with the distribution.
+ * - The name of the author may not be used to endorse or promote products
+ *   derived from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
 
+/** @addtogroup libc
+ * @{
+ */
+/** @file
+ */
+
+#ifndef LIBC_LIST_H_
+#define LIBC_LIST_H_
+
+#include <assert.h>
 #include <stddef.h>
 
-struct list_head {
-    struct list_head *next;
-    struct list_head *prev;
-};
+/** Doubly linked list link. */
+typedef struct link {
+	struct link *prev;  /**< Pointer to the previous item in the list. */
+	struct link *next;  /**< Pointer to the next item in the list. */
+} link_t;
 
-#define LIST_HEAD_INIT(name) {&(name), &(name)}
+/** Doubly linked list. */
+typedef struct list {
+	link_t head;  /**< List head. Does not have any data. */
+} list_t;
 
-#define LIST_HEAD(name) \
-    struct list_head name = LIST_HEAD_INIT(name)
+/** Declare and initialize statically allocated list.
+ *
+ * @param name Name of the new statically allocated list.
+ *
+ */
+#define LIST_INITIALIZE(name) \
+	list_t name = { \
+		.head = { \
+			.prev = &(name).head, \
+			.next = &(name).head \
+		} \
+	}
 
-extern void INIT_LIST_HEAD(struct list_head *list);
+#define list_get_instance(link, type, member) \
+	((type *) (((void *)(link)) - list_link_to_void(&(((type *) NULL)->member))))
 
-extern void list_add_head(struct list_head *n, struct list_head *head);
+#define list_foreach(list, member, itype, iterator) \
+	for (itype *iterator = NULL; iterator == NULL; iterator = (itype *) 1) \
+	    for (link_t *_link = (list).head.next; \
+	    iterator = list_get_instance(_link, itype, member), \
+	    _link != &(list).head; _link = _link->next)
 
-extern void list_add_tail(struct list_head *n, struct list_head *head);
+#define list_foreach_rev(list, member, itype, iterator) \
+	for (itype *iterator = NULL; iterator == NULL; iterator = (itype *) 1) \
+	    for (link_t *_link = (list).head.prev; \
+	    iterator = list_get_instance(_link, itype, member), \
+	    _link != &(list).head; _link = _link->prev)
 
-extern void list_del(struct list_head *p, struct list_head *n);
+/** Unlike list_foreach(), allows removing items while traversing a list.
+ *
+ * @code
+ * list_t mylist;
+ * typedef struct item {
+ *     int value;
+ *     link_t item_link;
+ * } item_t;
+ *
+ * //..
+ *
+ * // Print each list element's value and remove the element from the list.
+ * list_foreach_safe(mylist, cur_link, next_link) {
+ *     item_t *cur_item = list_get_instance(cur_link, item_t, item_link);
+ *     printf("%d\n", cur_item->value);
+ *     list_remove(cur_link);
+ * }
+ * @endcode
+ *
+ * @param list List to traverse.
+ * @param iterator Iterator to the current element of the list.
+ *             The item this iterator points may be safely removed
+ *             from the list.
+ * @param next_iter Iterator to the next element of the list.
+ */
+#define list_foreach_safe(list, iterator, next_iter) \
+	for (link_t *iterator = (list).head.next, \
+		*next_iter = iterator->next; \
+		iterator != &(list).head; \
+		iterator = next_iter, next_iter = iterator->next)
 
-#include <stddef.h>
+#define assert_link_not_used(link) \
+	assert(!link_used(link))
 
-#define container_of(ptr, type, member) ({ \
-        (type *)((char *)(ptr) - offsetof(type,member));})
+/** Returns true if the link is definitely part of a list. False if not sure. */
+static __inline int link_in_use(link_t *link)
+{
+	return link->prev != NULL && link->next != NULL;
+}
 
-/**
- *  * list_entry - get the struct for this entry
- *   * @ptr:    the &struct list_head pointer.
- *    * @type:  the type of the struct this is embedded in.
- *     * @member:   the name of the list_head within the struct.
- *      */
-#define list_entry(ptr, type, member) \
-        container_of(ptr, type, member)
+/** Initialize doubly-linked circular list link
+ *
+ * Initialize doubly-linked list link.
+ *
+ * @param link Pointer to link_t structure to be initialized.
+ *
+ */
+static __inline void link_initialize(link_t *link)
+{
+	link->prev = NULL;
+	link->next = NULL;
+}
 
-/**
- *  * list_first_entry - get the first element from a list
- *   * @ptr:    the list head to take the element from.
- *    * @type:  the type of the struct this is embedded in.
- *     * @member:   the name of the list_head within the struct.
- *      *
- *       * Note, that list is expected to be not empty.
- *        */
-#define list_first_entry(ptr, type, member) \
-        list_entry((ptr)->next, type, member)
+/** Initialize doubly-linked circular list
+ *
+ * Initialize doubly-linked circular list.
+ *
+ * @param list Pointer to list_t structure.
+ *
+ */
+static __inline void list_initialize(list_t *list)
+{
+	list->head.prev = &list->head;
+	list->head.next = &list->head;
+}
 
-/**
- *  * list_last_entry - get the last element from a list
- *   * @ptr:    the list head to take the element from.
- *    * @type:  the type of the struct this is embedded in.
- *     * @member:   the name of the list_head within the struct.
- *      *
- *       * Note, that list is expected to be not empty.
- *        */
-#define list_last_entry(ptr, type, member) \
-        list_entry((ptr)->prev, type, member)
+/** Insert item before another item in doubly-linked circular list.
+ *
+ */
+static __inline void list_insert_before(link_t *lnew, link_t *lold)
+{
+	lnew->next = lold;
+	lnew->prev = lold->prev;
+	lold->prev->next = lnew;
+	lold->prev = lnew;
+}
 
-/**
- *  * list_first_entry_or_null - get the first element from a list
- *   * @ptr:    the list head to take the element from.
- *    * @type:  the type of the struct this is embedded in.
- *     * @member:   the name of the list_head within the struct.
- *      *
- *       * Note that if the list is empty, it returns NULL.
- *        */
-#define list_first_entry_or_null(ptr, type, member) \
-        (!list_empty(ptr) ? list_first_entry(ptr, type, member) : NULL)
+/** Insert item after another item in doubly-linked circular list.
+ *
+ */
+static __inline void list_insert_after(link_t *lnew, link_t *lold)
+{
+	lnew->prev = lold;
+	lnew->next = lold->next;
+	lold->next->prev = lnew;
+	lold->next = lnew;
+}
 
-/**
- *  * list_next_entry - get the next element in list
- *   * @pos:    the type * to cursor
- *    * @member:    the name of the list_head within the struct.
- *     */
-#define list_next_entry(pos, member) \
-        list_entry((pos)->member.next, typeof(*(pos)), member)
+/** Add item to the beginning of doubly-linked circular list
+ *
+ * Add item to the beginning of doubly-linked circular list.
+ *
+ * @param link Pointer to link_t structure to be added.
+ * @param list Pointer to list_t structure.
+ *
+ */
+static __inline void list_prepend(link_t *link, list_t *list)
+{
+	list_insert_after(link, &list->head);
+}
 
-/**
- *  * list_prev_entry - get the prev element in list
- *   * @pos:    the type * to cursor
- *    * @member:    the name of the list_head within the struct.
- *     */
-#define list_prev_entry(pos, member) \
-        list_entry((pos)->member.prev, typeof(*(pos)), member)
+/** Add item to the end of doubly-linked circular list
+ *
+ * Add item to the end of doubly-linked circular list.
+ *
+ * @param link Pointer to link_t structure to be added.
+ * @param list Pointer to list_t structure.
+ *
+ */
+static __inline void list_append(link_t *link, list_t *list)
+{
+	list_insert_before(link, &list->head);
+}
 
-/**
- *  * list_for_each -   iterate over a list
- *   * @pos:    the &struct list_head to use as a loop cursor.
- *    * @head:  the head for your list.
- *     */
-#define list_for_each(pos, head) \
-        for (pos = (head)->next; pos != (head); pos = pos->next)
+/** Remove item from doubly-linked circular list
+ *
+ * Remove item from doubly-linked circular list.
+ *
+ * @param link Pointer to link_t structure to be removed from the list
+ *             it is contained in.
+ *
+ */
+static __inline void list_remove(link_t *link)
+{
+	if ((link->prev != NULL) && (link->next != NULL)) {
+		link->next->prev = link->prev;
+		link->prev->next = link->next;
+	}
 
-/**
- *  * list_for_each_prev    -   iterate over a list backwards
- *   * @pos:    the &struct list_head to use as a loop cursor.
- *    * @head:  the head for your list.
- *     */
-#define list_for_each_prev(pos, head) \
-        for (pos = (head)->prev; pos != (head); pos = pos->prev)
+	link_initialize(link);
+}
 
-/**
- *  * list_for_each_safe - iterate over a list safe against removal of list entry
- *   * @pos:    the &struct list_head to use as a loop cursor.
- *    * @n:     another &struct list_head to use as temporary storage
- *     * @head: the head for your list.
- *      */
-#define list_for_each_safe(pos, n, head) \
-        for (pos = (head)->next, n = pos->next; pos != (head); \
-                        pos = n, n = pos->next)
+/** Query emptiness of doubly-linked circular list
+ *
+ * Query emptiness of doubly-linked circular list.
+ *
+ * @param list Pointer to lins_t structure.
+ *
+ */
+static __inline int list_empty(const list_t *list)
+{
+	return (list->head.next == &list->head);
+}
 
-/**
- *  * list_for_each_prev_safe - iterate over a list backwards safe against removal of list entry
- *   * @pos:    the &struct list_head to use as a loop cursor.
- *    * @n:     another &struct list_head to use as temporary storage
- *     * @head: the head for your list.
- *      */
-#define list_for_each_prev_safe(pos, n, head) \
-        for (pos = (head)->prev, n = pos->prev; \
-                         pos != (head); \
-                         pos = n, n = pos->prev)
+/** Get first item in list.
+ *
+ * @param list Pointer to list_t structure.
+ *
+ * @return Head item of the list.
+ * @return NULL if the list is empty.
+ *
+ */
+static __inline link_t *list_first(const list_t *list)
+{
+	return ((list->head.next == &list->head) ? NULL : list->head.next);
+}
 
-/**
- *  * list_for_each_entry   -   iterate over list of given type
- *   * @pos:    the type * to use as a loop cursor.
- *    * @head:  the head for your list.
- *     * @member:   the name of the list_head within the struct.
- *      */
-#define list_for_each_entry(pos, head, member)              \
-        for (pos = list_first_entry(head, typeof(*pos), member);    \
-                         &pos->member != (head);                    \
-                         pos = list_next_entry(pos, member))
+/** Get last item in list.
+ *
+ * @param list Pointer to list_t structure.
+ *
+ * @return Head item of the list.
+ * @return NULL if the list is empty.
+ *
+ */
+static __inline link_t *list_last(list_t *list)
+{
+	return (list->head.prev == &list->head) ? NULL : list->head.prev;
+}
 
-/**
- *  * list_for_each_entry_reverse - iterate backwards over list of given type.
- *   * @pos:    the type * to use as a loop cursor.
- *    * @head:  the head for your list.
- *     * @member:   the name of the list_head within the struct.
- *      */
-#define list_for_each_entry_reverse(pos, head, member)          \
-        for (pos = list_last_entry(head, typeof(*pos), member);     \
-                         &pos->member != (head);                    \
-                         pos = list_prev_entry(pos, member))
+/** Get next item in list.
+ *
+ * @param link Current item link
+ * @param list List containing @a link
+ *
+ * @return Next item or NULL if @a link is the last item.
+ *
+ */
+static __inline link_t *list_next(link_t *link, const list_t *list)
+{
+	return (link->next == &list->head) ? NULL : link->next;
+}
 
-/**
- *  * list_prepare_entry - prepare a pos entry for use in list_for_each_entry_continue()
- *   * @pos:    the type * to use as a start point
- *    * @head:  the head of the list
- *     * @member:   the name of the list_head within the struct.
- *      *
- *       * Prepares a pos entry for use as a start point in list_for_each_entry_continue().
- *        */
-#define list_prepare_entry(pos, head, member) \
-        ((pos) ? : list_entry(head, typeof(*pos), member))
+/** Get previous item in list.
+ *
+ * @param link Current item link
+ * @param list List containing @a link
+ *
+ * @return Previous item or NULL if @a link is the first item.
+ *
+ */
+static __inline link_t *list_prev(link_t *link, const list_t *list)
+{
+	return (link->prev == &list->head) ? NULL : link->prev;
+}
 
-/**
- *  * list_for_each_entry_continue - continue iteration over list of given type
- *   * @pos:    the type * to use as a loop cursor.
- *    * @head:  the head for your list.
- *     * @member:   the name of the list_head within the struct.
- *      *
- *       * Continue to iterate over list of given type, continuing after
- *        * the current position.
- *         */
-#define list_for_each_entry_continue(pos, head, member)         \
-        for (pos = list_next_entry(pos, member);            \
-                         &pos->member != (head);                    \
-                         pos = list_next_entry(pos, member))
+/** Split or concatenate headless doubly-linked circular list
+ *
+ * Split or concatenate headless doubly-linked circular list.
+ *
+ * Note that the algorithm works both directions:
+ * concatenates splitted lists and splits concatenated lists.
+ *
+ * @param part1 Pointer to link_t structure leading the first
+ *              (half of the headless) list.
+ * @param part2 Pointer to link_t structure leading the second
+ *              (half of the headless) list.
+ *
+ */
+static __inline void headless_list_split_or_concat(link_t *part1, link_t *part2)
+{
+	part1->prev->next = part2;
+	part2->prev->next = part1;
 
-/**
- *  * list_for_each_entry_continue_reverse - iterate backwards from the given point
- *   * @pos:    the type * to use as a loop cursor.
- *    * @head:  the head for your list.
- *     * @member:   the name of the list_head within the struct.
- *      *
- *       * Start to iterate over list of given type backwards, continuing after
- *        * the current position.
- *         */
-#define list_for_each_entry_continue_reverse(pos, head, member)     \
-        for (pos = list_prev_entry(pos, member);            \
-                         &pos->member != (head);                    \
-                         pos = list_prev_entry(pos, member))
+	link_t *hlp = part1->prev;
 
-/**
- *  * list_for_each_entry_from - iterate over list of given type from the current point
- *   * @pos:    the type * to use as a loop cursor.
- *    * @head:  the head for your list.
- *     * @member:   the name of the list_head within the struct.
- *      *
- *       * Iterate over list of given type, continuing from current position.
- *        */
-#define list_for_each_entry_from(pos, head, member)             \
-        for (; &pos->member != (head);                  \
-                         pos = list_next_entry(pos, member))
+	part1->prev = part2->prev;
+	part2->prev = hlp;
+}
 
-/**
- *  * list_for_each_entry_safe - iterate over list of given type safe against removal of list entry
- *   * @pos:    the type * to use as a loop cursor.
- *    * @n:     another type * to use as temporary storage
- *     * @head: the head for your list.
- *      * @member:  the name of the list_head within the struct.
- *       */
-#define list_for_each_entry_safe(pos, n, head, member)          \
-        for (pos = list_first_entry(head, typeof(*pos), member),    \
-                        n = list_next_entry(pos, member);           \
-                         &pos->member != (head);                    \
-                         pos = n, n = list_next_entry(n, member))
+/** Split headless doubly-linked circular list
+ *
+ * Split headless doubly-linked circular list.
+ *
+ * @param part1 Pointer to link_t structure leading
+ *              the first half of the headless list.
+ * @param part2 Pointer to link_t structure leading
+ *              the second half of the headless list.
+ *
+ */
+static __inline void headless_list_split(link_t *part1, link_t *part2)
+{
+	headless_list_split_or_concat(part1, part2);
+}
 
-/**
- *  * list_for_each_entry_safe_continue - continue list iteration safe against removal
- *   * @pos:    the type * to use as a loop cursor.
- *    * @n:     another type * to use as temporary storage
- *     * @head: the head for your list.
- *      * @member:  the name of the list_head within the struct.
- *       *
- *        * Iterate over list of given type, continuing after current point,
- *         * safe against removal of list entry.
- *          */
-#define list_for_each_entry_safe_continue(pos, n, head, member)         \
-        for (pos = list_next_entry(pos, member),                \
-                        n = list_next_entry(pos, member);               \
-                         &pos->member != (head);                        \
-                         pos = n, n = list_next_entry(n, member))
+/** Concatenate two headless doubly-linked circular lists
+ *
+ * Concatenate two headless doubly-linked circular lists.
+ *
+ * @param part1 Pointer to link_t structure leading
+ *              the first headless list.
+ * @param part2 Pointer to link_t structure leading
+ *              the second headless list.
+ *
+ */
+static __inline void headless_list_concat(link_t *part1, link_t *part2)
+{
+	headless_list_split_or_concat(part1, part2);
+}
 
-/**
- *  * list_for_each_entry_safe_from - iterate over list from current point safe against removal
- *   * @pos:    the type * to use as a loop cursor.
- *    * @n:     another type * to use as temporary storage
- *     * @head: the head for your list.
- *      * @member:  the name of the list_head within the struct.
- *       *
- *        * Iterate over list of given type from current point, safe against
- *         * removal of list entry.
- *          */
-#define list_for_each_entry_safe_from(pos, n, head, member)             \
-        for (n = list_next_entry(pos, member);                  \
-                         &pos->member != (head);                        \
-                         pos = n, n = list_next_entry(n, member))
+/** Get n-th item in a list.
+ *
+ * @param list Pointer to link_t structure representing the list.
+ * @param n    Item number (indexed from zero).
+ *
+ * @return n-th item of the list.
+ * @return NULL if no n-th item found.
+ *
+ */
+static __inline link_t *list_nth(list_t *list, unsigned int n)
+{
+	unsigned int cnt = 0;
 
-/**
- *  * list_for_each_entry_safe_reverse - iterate backwards over list safe against removal
- *   * @pos:    the type * to use as a loop cursor.
- *    * @n:     another type * to use as temporary storage
- *     * @head: the head for your list.
- *      * @member:  the name of the list_head within the struct.
- *       *
- *        * Iterate backwards over list of given type, safe against removal
- *         * of list entry.
- *          */
-#define list_for_each_entry_safe_reverse(pos, n, head, member)      \
-        for (pos = list_last_entry(head, typeof(*pos), member),     \
-                        n = list_prev_entry(pos, member);           \
-                         &pos->member != (head);                    \
-                         pos = n, n = list_prev_entry(n, member))
+	link_t *link = list_first(list);
+	while (link != NULL) {
+		if (cnt == n)
+			return link;
 
-/**
- *  * list_safe_reset_next - reset a stale list_for_each_entry_safe loop
- *   * @pos:    the loop cursor used in the list_for_each_entry_safe loop
- *    * @n:     temporary storage used in list_for_each_entry_safe
- *     * @member:   the name of the list_head within the struct.
- *      *
- *       * list_safe_reset_next is not safe to use in general if the list may be
- *        * modified concurrently (eg. the lock is dropped in the loop body). An
- *         * exception to this is if the cursor element (pos) is pinned in the list,
- *          * and list_safe_reset_next is called after re-taking the lock and before
- *           * completing the current iteration of the loop body.
- *            */
-#define list_safe_reset_next(pos, n, member)                \
-        n = list_next_entry(pos, member)
+		cnt++;
+		link = list_next(link, list);
+	}
 
-#endif /* LIST_H_ */
+	return NULL;
+}
+
+/** Verify that argument type is a pointer to link_t (at compile time).
+ *
+ * This can be used to check argument type in a macro.
+ */
+static __inline const void *list_link_to_void(const link_t *link)
+{
+	return link;
+}
+
+/** Determine if link is used.
+ *
+ * @param link Link
+ * @return @c true if link is used, @c false if not.
+ */
+static __inline unsigned char link_used(link_t *link)
+{
+	if (link->prev == NULL && link->next == NULL)
+		return 0;
+
+	assert(link->prev != NULL && link->next != NULL);
+	return 1;
+}
+
+extern int list_member(const link_t *, const list_t *);
+extern void list_concat(list_t *, list_t *);
+extern unsigned int list_count(const list_t *);
+
+#endif
+
+/** @}
+ */
+

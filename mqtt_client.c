@@ -122,7 +122,16 @@ static void on_readable(int fd)
 									clients[i].status = 1;
 								}
 							}
+							if (1 == clients[i].status) {
+								if (clients[i].param.alive) {
+									/* start alive timer. */
+								}
+							}
+						} else {
+							/* packet format error. */
 						}
+					} else {
+						/* sequence error. */
 					}
 				}
 					break;
@@ -130,6 +139,8 @@ static void on_readable(int fd)
 					break;
 				}
 				free(buf);
+			} else {
+				/* internal error. */
 			}
 			break;
 		}
