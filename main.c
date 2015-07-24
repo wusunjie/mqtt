@@ -3,7 +3,6 @@
  *
  *  Created on: 2015Äê7ÔÂ10ÈÕ
  *      Author: Administrator
-	//ÔÎËÀ
  */
 
 #include "control_packet.h"
@@ -34,3 +33,5 @@ int main(void)
 	printf("%x, %x\n", x.field.bits.msb, x.field.bits.lsb);
 	return 0;
 }
+
+/*********************************End of File***************************************************/
