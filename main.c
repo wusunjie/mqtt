@@ -32,6 +32,6 @@ int main(void)
 	printf("%x, %x, %x\n", x.msb, x.lsb, (unsigned short)cur[0] << 8 | cur[1]);
 	printf("%x, %x\n", x.field.bits.msb, x.field.bits.lsb);
 	return 0;
-}
+}//End of main
 
 /*********************************End of File***************************************************/
