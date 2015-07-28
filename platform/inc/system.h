@@ -20,6 +20,8 @@ extern void system_timer_task_create(system_task_entry entry, long time);
 
 extern void system_timer_task_destory(void);
 
+extern void system_task_suspend(void);
+
 extern void system_flag_create(void);
 
 extern void system_flag_wait_clr(void);

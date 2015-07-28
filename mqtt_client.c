@@ -7,7 +7,7 @@
 
 #include "platform/inc/connection.h"
 
-#include "mqtt_types.h"
+#include <stdint.h>
 #include "control_packet.h"
 #include "fifo.h"
 
@@ -19,7 +19,7 @@ struct client {
 	int fd;
 	struct fifo *read_buf;
 	struct fifo *write_buf;
-	struct mqtt_type_utf8 id;
+	struct utf8 id;
 	struct connect_param param;
 	struct session *session;
 	unsigned char connected;
@@ -59,8 +59,8 @@ static void on_connected(int fd)
 						clients[i].status = 0;
 					}
 				} else {
-					mqtt_type_uint8 *buf = 0;
-					mqtt_type_uint32 len;
+					uint8_t *buf = 0;
+					uint32_t len;
 					clients[i].session = session_create();
 					len = make_connect_packet(clients[i].param, &buf);
 					fifo_write(clients[i].write_buf, buf, len);
